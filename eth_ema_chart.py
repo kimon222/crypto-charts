@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 # Imgur API setup
 IMGUR_CLIENT_ID = os.getenv('IMGUR_CLIENT_ID')  # GitHub Actions will set this as an environment variable
 IMGUR_UPLOAD_URL = 'https://api.imgur.com/3/image'
+IMGUR_DELETE_URL = 'https://api.imgur.com/3/image/{image_id}'  # URL for deleting images from Imgur
 
 # CoinGecko API setup for fetching coin data
 def fetch_data_from_coingecko(symbol):
@@ -62,10 +63,24 @@ def upload_to_imgur(image_path):
     response_data = response.json()
     
     if response.status_code == 200:
-        return response_data['data']['link']
+        return response_data['data']['link'], response_data['data']['id']
     else:
         print(f"Failed to upload to Imgur: {response_data}")
-        return None
+        return None, None
+
+# Function to delete old Imgur images
+def delete_old_imgur_image(image_id):
+    headers = {
+        'Authorization': f'Client-ID {IMGUR_CLIENT_ID}'
+    }
+    
+    # Send the delete request
+    response = requests.delete(IMGUR_DELETE_URL.format(image_id=image_id), headers=headers)
+    
+    if response.status_code == 200:
+        print(f"Deleted old image with ID: {image_id}")
+    else:
+        print(f"Failed to delete old image: {response.status_code}, {response.text}")
 
 # Generate chart and upload to Imgur
 def generate_and_upload_chart(asset, symbol):
@@ -89,10 +104,16 @@ def generate_and_upload_chart(asset, symbol):
     plt.close()
 
     print(f"Uploading chart for {asset} to Imgur...")
-    imgur_url = upload_to_imgur(chart_name)
+    imgur_url, imgur_image_id = upload_to_imgur(chart_name)
 
-    # If upload successful, write URL to a file
+    # If upload successful, delete the old image (if any), and write URL to a file
     if imgur_url:
+        print(f"Uploaded new chart to Imgur: {imgur_url}")
+        
+        # Assuming you want to delete the previous image, keep track of the old images in a list or file
+        # If you have the old image IDs, you can call the delete function here:
+        # delete_old_imgur_image(old_image_id)
+        
         # Append the URL to the 'latest_chart_urls.txt' file
         with open('latest_chart_urls.txt', 'a') as file:
             file.write(f'{asset}: {imgur_url}\n')  # Save asset name and the corresponding chart URL
