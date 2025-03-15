@@ -2,15 +2,15 @@ name: Auto Update Charts
 
 on:
   schedule:
-    - cron: '0 19 * * *'  # This runs the workflow every day at 7:00 PM UTC
-  workflow_dispatch:  # Allow manual trigger from GitHub UI if needed
+    - cron: '0 17 * * *'  # Runs daily at 7:00 PM Latvia time (UTC+2 → UTC 17:00)
+  workflow_dispatch:  # Allows manual trigger from GitHub UI
 
 jobs:
   update-charts:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout Repo 1
+      - name: Checkout Repo 1 (Main Repo)
         uses: actions/checkout@v2
 
       - name: Set up Python
@@ -29,26 +29,30 @@ jobs:
         run: |
           python eth_ema_chart.py  # Run your Python script to generate the charts
 
+      - name: Ensure latest_chart_urls.txt exists
+        run: |
+          touch latest_chart_urls.txt  # Create the file if it doesn't exist
+
       - name: Clean up image files
         run: |
-          rm -f *.png  # Remove all .png files (or specify the exact image name)
+          rm -f *.png  # Remove all .png files after upload
 
       - name: Checkout Repo 2 (Chart URLs Repo)
         uses: actions/checkout@v2
         with:
-          repository: kimon222/crypto-charts  # Replace with the name of your second repo
+          repository: kimon222/chart-urls  # Correct repo name
           token: ${{ secrets.MY_GITHUB_TOKEN }}
-          path: repo2
+          path: chart-urls
 
       - name: Copy updated chart URL file
         run: |
-          cp latest_chart_urls.txt crypto-charts/latest_chart_urls.txt  # Copy the updated text file
+          cp latest_chart_urls.txt chart-urls/latest_chart_urls.txt  # Copy the updated text file
 
       - name: Commit and push to Repo 2
         run: |
-          cd crypto-charts
+          cd chart-urls
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git add latest_chart_urls.txt
-          git commit -m "Update chart URLs"
+          git commit -m "Update chart URLs" || echo "No changes to commit"
           git push origin main  # Push to the main branch of Repo 2
