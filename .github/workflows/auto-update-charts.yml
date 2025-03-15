@@ -2,7 +2,7 @@ name: Auto Update Charts
 
 on:
   schedule:
-    - cron: '0 19 * * *'  # This runs the workflow every day at 7:00 PM UTC
+    - cron: '30 21 * * *'  # This runs the workflow every day at 7:00 PM UTC
   workflow_dispatch:  # Allow manual trigger from GitHub UI if needed
 
 jobs:
