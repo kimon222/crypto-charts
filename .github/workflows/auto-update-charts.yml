@@ -24,6 +24,8 @@ jobs:
           pip install -r requirements.txt  # Ensure you have a requirements.txt file
 
       - name: Run Python script
+        env:
+          IMGUR_CLIENT_ID: ${{ secrets.IMGUR_CLIENT_ID }}  # Pass secret to the Python script
         run: |
           python eth_ema_chart.py  # Run your Python script to generate the charts
 
@@ -46,4 +48,3 @@ jobs:
           git add latest_chart_urls.txt
           git commit -m "Update chart URLs"
           git push origin main  # Push to the main branch of Repo 2
-
