@@ -30,17 +30,17 @@ jobs:
       - name: Checkout Repo 2 (Chart URLs Repo)
         uses: actions/checkout@v2
         with:
-          repository: <YOUR_USERNAME>/<REPO_2>  # Replace with the name of your second repo
-          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: kimon222/crypto-charts  # Replace with the name of your second repo
+          token: ${{ secrets.MY_GITHUB_TOKEN }}
           path: repo2
 
       - name: Copy updated chart URL file
         run: |
-          cp latest_chart_urls.txt repo2/latest_chart_urls.txt  # Copy the updated text file
+          cp latest_chart_urls.txt crypto-charts/latest_chart_urls.txt  # Copy the updated text file
 
       - name: Commit and push to Repo 2
         run: |
-          cd repo2
+          cd crypto-charts
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git add latest_chart_urls.txt
