@@ -29,6 +29,10 @@ jobs:
         run: |
           python eth_ema_chart.py  # Run your Python script to generate the charts
 
+      - name: Clean up image files
+        run: |
+          rm -f *.png  # Remove all .png files (or specify the exact image name)
+
       - name: Checkout Repo 2 (Chart URLs Repo)
         uses: actions/checkout@v2
         with:
