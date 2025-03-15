@@ -4,9 +4,13 @@ import requests
 from datetime import datetime
 import os
 import time
+from dotenv import load_dotenv
+
+# Load environment variables (not needed in GitHub Actions since secrets are injected directly)
+# load_dotenv()
 
 # Imgur API setup
-IMGUR_CLIENT_ID = 'cf6438baeb72ba3'
+IMGUR_CLIENT_ID = os.getenv('IMGUR_CLIENT_ID')  # GitHub Actions will set this as an environment variable
 IMGUR_UPLOAD_URL = 'https://api.imgur.com/3/image'
 
 # CoinGecko API setup for fetching coin data
@@ -63,7 +67,6 @@ def upload_to_imgur(image_path):
         print(f"Failed to upload to Imgur: {response_data}")
         return None
 
-
 # Generate chart and upload to Imgur
 def generate_and_upload_chart(asset, symbol):
     chart_name = f'{asset}_chart.png'
@@ -104,8 +107,6 @@ def save_chart_urls(links):
             file.write(f'{asset}: {url}\n')
     print("Saved new chart URLs to latest_chart_urls.txt")
 
-
-
 # Main function to process the coins and upload their charts
 def main():
     assets = {'ETH': 'ethereum', 'AVAX': 'avalanche-2', 'XLM': 'stellar', 'ONDO': 'ondo-finance'}
@@ -123,7 +124,6 @@ def main():
     # Save the latest chart URLs to the text file
     if links:
         save_chart_urls(links)
-
 
 if __name__ == "__main__":
     main()
