@@ -118,8 +118,8 @@ def generate_and_upload_chart(asset, symbol):
     plt.plot(df['DATE'], df['PRICE'], label=f'{asset} Weekly Price', color='gray', alpha=0.5)
     
     # Plot EMAs - using 9 & 21 to match common TradingView defaults
-    plt.plot(df['DATE'], df['EXP_9'], label=f'{asset} EMA(9)', color='blue', linewidth=2)
-    plt.plot(df['DATE'], df['EXP_21'], label=f'{asset} EMA(21)', color='red', linewidth=2)
+    plt.plot(df['DATE'], df['EXP_9'], label=f'{asset} EMA(10)', color='blue', linewidth=2)
+    plt.plot(df['DATE'], df['EXP_21'], label=f'{asset} EMA(20)', color='red', linewidth=2)
     
     # Add chart title indicating weekly timeframe
     plt.title(f'{asset} Weekly Price with EMAs')
