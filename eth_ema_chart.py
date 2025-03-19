@@ -17,7 +17,7 @@ IMGUR_DELETE_URL = 'https://api.imgur.com/3/image/{image_id}'  # URL for deletin
 # CoinGecko API setup for fetching coin data
 def fetch_data_from_coingecko(symbol):
     url = f'https://api.coingecko.com/api/v3/coins/{symbol}/market_chart'
-    params = {'vs_currency': 'usd', 'days': '140', 'interval': 'weekly'}
+    params = {'vs_currency': 'usd', 'days': '7', 'interval': 'daily'}
     
     response = requests.get(url, params=params)
     
