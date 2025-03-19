@@ -17,31 +17,39 @@ IMGUR_DELETE_URL = 'https://api.imgur.com/3/image/{image_id}'  # URL for deletin
 # CoinGecko API setup for fetching coin data
 def fetch_data_from_coingecko(symbol):
     url = f'https://api.coingecko.com/api/v3/coins/{symbol}/market_chart'
-    params = {'vs_currency': 'usd', 'days': '7', 'interval': 'daily'}
+    params = {'vs_currency': 'usd', 'days': '7', 'interval': 'daily'}  # Fetching 7 days of data
     
     response = requests.get(url, params=params)
     
-    if response.status_code == 429:
-        print(f"Rate limit hit for {symbol}, retrying after a delay...")
-        time.sleep(10)  # Wait 10 seconds before retrying
-        return fetch_data_from_coingecko(symbol)  # Retry the request
-    
     if response.status_code != 200:
         print(f"Error fetching data for {symbol}: {response.status_code}")
-        return pd.DataFrame()  # Return an empty DataFrame if there's an issue
+        return pd.DataFrame()
     
     data = response.json()
     
     if 'prices' not in data:
         print(f"No 'prices' found in the response for {symbol}")
-        return pd.DataFrame()  # Return an empty DataFrame if 'prices' is missing
+        return pd.DataFrame()
     
     prices = data['prices']
     dates = [datetime.utcfromtimestamp(item[0] / 1000) for item in prices]
     prices = [item[1] for item in prices]
+    
+    # Create DataFrame
     df = pd.DataFrame({'DATE': dates, 'PRICE': prices})
-    df['EXP_10'] = df['PRICE'].ewm(span=10, adjust=False).mean()
-    df['EXP_20'] = df['PRICE'].ewm(span=20, adjust=False).mean()
+    
+    # Set date as index for resampling
+    df.set_index('DATE', inplace=True)
+    
+    # Resample to weekly data (taking last price of each week)
+    df_weekly = df.resample('W-SUN').last()  # Resampling by week, ending on Sunday
+    
+    # Calculate 10-week and 20-week EMAs on weekly data
+    df_weekly['EXP_10'] = df_weekly['PRICE'].ewm(span=10, adjust=False).mean()
+    df_weekly['EXP_20'] = df_weekly['PRICE'].ewm(span=20, adjust=False).mean()
+    
+    # Merge the weekly EMA values back to the daily data
+    df = df.join(df_weekly[['EXP_10', 'EXP_20']], how='left')
     
     return df
 
