@@ -16,8 +16,9 @@ IMGUR_DELETE_URL = 'https://api.imgur.com/3/image/{image_id}'  # URL for deletin
 
 # CoinGecko API setup for fetching coin data
 def fetch_data_from_coingecko(symbol):
+    # Fetch more data (90+ days) to have enough for weekly resampling and EMA calculation
     url = f'https://api.coingecko.com/api/v3/coins/{symbol}/market_chart'
-    params = {'vs_currency': 'usd', 'days': '7', 'interval': 'daily'}
+    params = {'vs_currency': 'usd', 'days': '180', 'interval': 'daily'}
     
     response = requests.get(url, params=params)
     
@@ -36,14 +37,32 @@ def fetch_data_from_coingecko(symbol):
         print(f"No 'prices' found in the response for {symbol}")
         return pd.DataFrame()  # Return an empty DataFrame if 'prices' is missing
     
+    # Process daily data
     prices = data['prices']
     dates = [datetime.utcfromtimestamp(item[0] / 1000) for item in prices]
     prices = [item[1] for item in prices]
     df = pd.DataFrame({'DATE': dates, 'PRICE': prices})
-    df['EXP_10'] = df['PRICE'].ewm(span=10, adjust=False).mean()
-    df['EXP_20'] = df['PRICE'].ewm(span=20, adjust=False).mean()
     
-    return df
+    # Convert to pandas datetime and set as index
+    df['DATE'] = pd.to_datetime(df['DATE'])
+    df = df.set_index('DATE')
+    
+    # Resample to weekly (matching TradingView's weekly candles)
+    # Use last price of the week as closing price
+    weekly_df = df['PRICE'].resample('W-FRI').last().to_frame()
+    
+    # Reset index to have DATE as a column again
+    weekly_df = weekly_df.reset_index()
+    
+    # Calculate EMAs with parameters matching TradingView's defaults for weekly timeframe
+    weekly_df['EXP_10'] = weekly_df['PRICE'].ewm(span=10, adjust=False).mean()
+    weekly_df['EXP_20'] = weekly_df['PRICE'].ewm(span=20, adjust=False).mean()
+    
+    # Add 9 and 21 EMAs which are common TradingView defaults
+    weekly_df['EXP_9'] = weekly_df['PRICE'].ewm(span=9, adjust=False).mean()
+    weekly_df['EXP_21'] = weekly_df['PRICE'].ewm(span=21, adjust=False).mean()
+    
+    return weekly_df
 
 # Function to upload image to Imgur
 def upload_to_imgur(image_path):
@@ -94,30 +113,44 @@ def generate_and_upload_chart(asset, symbol):
 
     print(f"Generating chart for {asset}...")
     plt.figure(figsize=(12, 7))
-    plt.plot(df['DATE'], df['EXP_10'], label=f'{asset} EXP_10', color='blue')
-    plt.plot(df['DATE'], df['EXP_20'], label=f'{asset} EXP_20', color='red')
+    
+    # Plot weekly price
+    plt.plot(df['DATE'], df['PRICE'], label=f'{asset} Weekly Price', color='gray', alpha=0.5)
+    
+    # Plot EMAs - using 9 & 21 to match common TradingView defaults
+    plt.plot(df['DATE'], df['EXP_9'], label=f'{asset} EMA(9)', color='blue', linewidth=2)
+    plt.plot(df['DATE'], df['EXP_21'], label=f'{asset} EMA(21)', color='red', linewidth=2)
+    
+    # Add chart title indicating weekly timeframe
+    plt.title(f'{asset} Weekly Price with EMAs')
     plt.xlabel('Date')
     plt.ylabel('Price (USD)')
     plt.legend()
     plt.grid()
+    plt.xticks(rotation=45)
+    plt.tight_layout()  # Adjust layout to make room for rotated labels
     plt.savefig(chart_name, dpi=300)
     plt.close()
 
     print(f"Uploading chart for {asset} to Imgur...")
     imgur_url, imgur_image_id = upload_to_imgur(chart_name)
 
-    # If upload successful, delete the old image (if any), and write URL to a file
+    # If upload successful, delete the local image file and write URL to a file
     if imgur_url:
         print(f"Uploaded new chart to Imgur: {imgur_url}")
-        
-        # Assuming you want to delete the previous image, keep track of the old images in a list or file
-        # If you have the old image IDs, you can call the delete function here:
-        # delete_old_imgur_image(old_image_id)
         
         # Append the URL to the 'latest_chart_urls.txt' file
         with open('latest_chart_urls.txt', 'a') as file:
             file.write(f'{asset}: {imgur_url}\n')  # Save asset name and the corresponding chart URL
         print(f"Saved new chart URL for {asset} to latest_chart_urls.txt")
+        
+        # Clean up local image file
+        try:
+            os.remove(chart_name)
+            print(f"Removed local image file: {chart_name}")
+        except Exception as e:
+            print(f"Failed to remove local image file: {e}")
+            
     return imgur_url
 
 # Save the new chart URLs to the file
@@ -132,6 +165,8 @@ def save_chart_urls(links):
 def main():
     assets = {'ETH': 'ethereum', 'AVAX': 'avalanche-2', 'XLM': 'stellar', 'ONDO': 'ondo-finance'}
     links = {}
+    
+    # Add rate limiting to avoid CoinGecko API limits
     for asset, symbol in assets.items():
         print(f"Processing {asset} ({symbol})...")
         link = generate_and_upload_chart(asset, symbol)
@@ -139,6 +174,11 @@ def main():
             links[asset] = link
         else:
             print(f"Failed to generate or upload chart for {asset}")
+        
+        # Add delay between API calls to avoid rate limiting
+        if asset != list(assets.keys())[-1]:  # If not the last asset
+            print("Waiting 2 seconds before next API call...")
+            time.sleep(2)
 
     print("Updated chart links:", links)
 
