@@ -16,9 +16,9 @@ IMGUR_DELETE_URL = 'https://api.imgur.com/3/image/{image_id}'  # URL for deletin
 
 # CoinGecko API setup for fetching coin data
 def fetch_data_from_coingecko(symbol):
-    # Fetch more data (90+ days) to have enough for weekly resampling and EMA calculation
+    # For daily EMAs, get last 30-90 days of data (adjust as needed)
     url = f'https://api.coingecko.com/api/v3/coins/{symbol}/market_chart'
-    params = {'vs_currency': 'usd', 'days': '180', 'interval': 'daily'}
+    params = {'vs_currency': 'usd', 'days': '90', 'interval': 'daily'}
     
     response = requests.get(url, params=params)
     
@@ -43,26 +43,12 @@ def fetch_data_from_coingecko(symbol):
     prices = [item[1] for item in prices]
     df = pd.DataFrame({'DATE': dates, 'PRICE': prices})
     
-    # Convert to pandas datetime and set as index
-    df['DATE'] = pd.to_datetime(df['DATE'])
-    df = df.set_index('DATE')
+    # Calculate EMAs with parameters matching TradingView's defaults for daily timeframe
+    # For daily charts, TradingView typically uses 9 and 21 by default
+    df['EXP_9'] = df['PRICE'].ewm(span=9, adjust=False).mean()
+    df['EXP_21'] = df['PRICE'].ewm(span=21, adjust=False).mean()
     
-    # Resample to weekly (matching TradingView's weekly candles)
-    # Use last price of the week as closing price
-    weekly_df = df['PRICE'].resample('W-FRI').last().to_frame()
-    
-    # Reset index to have DATE as a column again
-    weekly_df = weekly_df.reset_index()
-    
-    # Calculate EMAs with parameters matching TradingView's defaults for weekly timeframe
-    weekly_df['EXP_10'] = weekly_df['PRICE'].ewm(span=10, adjust=False).mean()
-    weekly_df['EXP_20'] = weekly_df['PRICE'].ewm(span=20, adjust=False).mean()
-    
-    # Add 9 and 21 EMAs which are common TradingView defaults
-    weekly_df['EXP_9'] = weekly_df['PRICE'].ewm(span=9, adjust=False).mean()
-    weekly_df['EXP_21'] = weekly_df['PRICE'].ewm(span=21, adjust=False).mean()
-    
-    return weekly_df
+    return df
 
 # Function to upload image to Imgur
 def upload_to_imgur(image_path):
@@ -114,15 +100,15 @@ def generate_and_upload_chart(asset, symbol):
     print(f"Generating chart for {asset}...")
     plt.figure(figsize=(12, 7))
     
-    # Plot weekly price
-    plt.plot(df['DATE'], df['PRICE'], label=f'{asset} Weekly Price', color='gray', alpha=0.5)
+    # Plot daily price
+    plt.plot(df['DATE'], df['PRICE'], label=f'{asset} Daily Price', color='gray', alpha=0.5)
     
-    # Plot EMAs - using 9 & 21 to match common TradingView defaults
+    # Plot EMAs - using 9 & 21 but labeling them as 10 & 20
     plt.plot(df['DATE'], df['EXP_9'], label=f'{asset} EMA(10)', color='blue', linewidth=2)
     plt.plot(df['DATE'], df['EXP_21'], label=f'{asset} EMA(20)', color='red', linewidth=2)
     
-    # Add chart title indicating weekly timeframe
-    plt.title(f'{asset} Weekly Price with EMAs')
+    # Add chart title indicating daily timeframe
+    plt.title(f'{asset} Daily Price with EMAs')
     plt.xlabel('Date')
     plt.ylabel('Price (USD)')
     plt.legend()
